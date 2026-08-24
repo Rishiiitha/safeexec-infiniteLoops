@@ -421,7 +421,7 @@ Tier 2 uses Groq for LLM inference.
 Create a `.env` file in the project root:
 
 ```env
-OPENAI_API_KEY=gsk_your_api_key_here
+API_KEY=gsk_your_api_key_here
 ```
 
 Keep `.env` in `.gitignore` so API credentials are not committed to the repository.
