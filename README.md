@@ -58,61 +58,15 @@ The hook communicates with the background daemon using TCP with timeouts. If the
 
 ![System Architecture](assets/architecture.jpg)
 
-```text
-                    Terminal Command
-                           |
-                           v
-                     SafeExec Hook
-                           |
-                           v
-                Command Canonicalization
-                           |
-                           v
-                    Tier 0 Rules
-                     /         \
-                  Match       No Match
-                    |             |
-                    v             v
-                  Allow       SQLite Cache
-                                  |
-                              Cache Miss
-                                  |
-                                  v
-                         Tier 1 Local ML
-                           /          \
-                       Low Risk     Uncertain
-                           |             |
-                           v             v
-                         Allow       Tier 2 LLM
-                                         |
-                                         v
-                                Threat Classification
-                                  /               \
-                              Benign             Malicious
-                                |                   |
-                                v                   v
-                              Allow        MITRE ATT&CK Mapping
-                                                    |
-                                                    v
-                                               Blast Radius
-                                                    |
-                                                    v
-                                                  Block
-```
-
 ## Detection Pipeline
-
-![Detection Pipeline](assets/detection-pipeline.jpg)
 
 The detection process is intentionally hierarchical.
 
-A command first passes through deterministic checks. If the rules cannot confidently classify it, the command moves to the local ML scorer. Only commands that remain uncertain are sent to the LLM layer.
+A command first passes through deterministic checks. If the rules cannot confidently classify it, the command moves to the local ML scorer. If the ML scorer still finds the command uncertain, it checks the local cache. Only commands that remain completely ambiguous and uncached are sent to the LLM layer.
 
 This reduces unnecessary inference and keeps routine terminal operations local.
 
 ## Execution Flow
-
-![Execution Flow](assets/execution-flow.jpg)
 
 ```text
 Command typed
@@ -127,19 +81,19 @@ Safety Daemon
       |
       +--> Tier 0 Rules
       |
-      +--> SQLite Cache
-      |
       +--> Tier 1 ML
+      |
+      +--> SQLite Cache (LLM optimization)
       |
       +--> Tier 2 LLM
       |
       v
 Risk Verdict
       |
-   +--+--------+
-   |           |
- Allow      Warn/Block
-```
+      +--+--------+
+      |           |
+    Allow      Warn/Block
+````
 
 ## Dataset and Machine Learning
 
@@ -155,10 +109,10 @@ real_training_data.csv
 
 The dataset was prepared from sources including:
 
-- **NL2Bash** for natural-language-to-shell command examples and normal command patterns.
-- **GTFOBins** for examples of Linux binaries and command patterns that can be abused for execution, privilege escalation, file access, and other security-sensitive behavior.
-- Linux administration and shell-command examples for common developer and system workflows.
-- Synthetic variations used to increase coverage of suspicious command structures and command combinations.
+* **NL2Bash** for natural-language-to-shell command examples and normal command patterns.
+* **GTFOBins** for examples of Linux binaries and command patterns that can be abused for execution, privilege escalation, file access, and other security-sensitive behavior.
+* Linux administration and shell-command examples for common developer and system workflows.
+* Synthetic variations used to increase coverage of suspicious command structures and command combinations.
 
 The source material is transformed into numerical features before being used for model training.
 
@@ -187,11 +141,11 @@ contains indicators related to privilege usage and permission modification, whil
 
 The training script uses:
 
-- Python
-- Pandas
-- Scikit-learn
-- XGBoost
-- m2cgen
+* Python
+* Pandas
+* Scikit-learn
+* XGBoost
+* m2cgen
 
 The XGBoost classifier is trained using the prepared CSV dataset and then converted into Go code using m2cgen.
 
@@ -240,13 +194,13 @@ SafeExec therefore performs command parsing and canonicalization before deeper a
 
 The purpose is to preserve important structural information while reducing irrelevant variations such as:
 
-- Different argument values
-- File paths
-- Flags
-- Quoting differences
-- Command chaining
-- Pipes
-- Redirections
+* Different argument values
+* File paths
+* Flags
+* Quoting differences
+* Command chaining
+* Pipes
+* Redirections
 
 For example:
 
@@ -270,12 +224,12 @@ Tier 0 performs lightweight rule-based analysis.
 
 Examples of patterns that can be checked include:
 
-- Destructive filesystem operations
-- Suspicious download-and-execute chains
-- Privilege changes
-- Shell interpreter execution
-- Dangerous permission modifications
-- Suspicious command combinations
+* Destructive filesystem operations
+* Suspicious download-and-execute chains
+* Privilege changes
+* Shell interpreter execution
+* Dangerous permission modifications
+* Suspicious command combinations
 
 Commands confidently classified by Tier 0 do not need ML or LLM inference.
 
@@ -313,13 +267,13 @@ The LLM is intended for contextual analysis where deterministic rules and numeri
 
 The response can provide:
 
-- Threat classification
-- Reason for the classification
-- Potential impact
-- MITRE ATT&CK technique
-- Blast radius
-- Recommended action
-- Safer alternative
+* Threat classification
+* Reason for the classification
+* Potential impact
+* MITRE ATT&CK technique
+* Blast radius
+* Recommended action
+* Safer alternative
 
 The LLM is therefore used as a deeper reasoning layer rather than the first line of command detection.
 
@@ -364,46 +318,46 @@ This allows the system to provide more useful context than a simple malicious/be
 
 ### Core
 
-- Go
-- Linux
-- Bash
-- TCP sockets
-- SQLite
+* Go
+* Linux
+* Bash
+* TCP sockets
+* SQLite
 
 ### Machine Learning
 
-- Python
-- Pandas
-- Scikit-learn
-- XGBoost
-- m2cgen
+* Python
+* Pandas
+* Scikit-learn
+* XGBoost
+* m2cgen
 
 ### AI / LLM
 
-- Groq API
-- LLM-based command reasoning
+* Groq API
+* LLM-based command reasoning
 
 ### Command Analysis
 
-- Shell command parsing
-- AST-based command representation
-- Command canonicalization
-- Feature extraction
+* Shell command parsing
+* AST-based command representation
+* Command canonicalization
+* Feature extraction
 
 ### Security
 
-- MITRE ATT&CK
-- Rule-based threat detection
-- Local ML scoring
-- Risk classification
-- Blast-radius analysis
+* MITRE ATT&CK
+* Rule-based threat detection
+* Local ML scoring
+* Risk classification
+* Blast-radius analysis
 
 ### Development Tools
 
-- Git
-- Go toolchain
-- Python virtual environment
-- Linux shell
+* Git
+* Go toolchain
+* Python virtual environment
+* Linux shell
 
 ## Installation
 
@@ -541,13 +495,13 @@ safeexec/
 
 SafeExec is a security-assistance layer and should not replace operating-system security controls.
 
-- Do not treat LLM output as an infallible security boundary.
-- Keep API credentials outside source control.
-- Run the daemon with appropriate privileges.
-- Validate communication between the hook and daemon.
-- Keep deterministic security rules independent of the LLM layer.
-- Test against obfuscated and adversarial command inputs.
-- Avoid executing untrusted commands during testing.
+* Do not treat LLM output as an infallible security boundary.
+* Keep API credentials outside source control.
+* Run the daemon with appropriate privileges.
+* Validate communication between the hook and daemon.
+* Keep deterministic security rules independent of the LLM layer.
+* Test against obfuscated and adversarial command inputs.
+* Avoid executing untrusted commands during testing.
 
 ## Current Scope
 
@@ -555,14 +509,14 @@ SafeExec currently focuses on Linux terminal command interception and analysis.
 
 The current implementation covers:
 
-- Command interception
-- Command parsing and canonicalization
-- Deterministic threat detection
-- SQLite caching
-- Local ML scoring
-- LLM-assisted analysis
-- MITRE ATT&CK mapping
-- Blast-radius estimation
-- Daemon-based command evaluation
+* Command interception
+* Command parsing and canonicalization
+* Deterministic threat detection
+* SQLite caching
+* Local ML scoring
+* LLM-assisted analysis
+* MITRE ATT&CK mapping
+* Blast-radius estimation
+* Daemon-based command evaluation
 
 The architecture can later be extended toward broader endpoint telemetry, centralized security policies, security dashboards, and SOC integrations.
